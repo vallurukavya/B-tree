@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B-Tree Visualizer</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            text-align: center;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 180px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 12px 18px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .clear-btn {
+            background: #dc2626;
+        }
+
+        .clear-btn:hover {
+            background: #b91c1c;
+        }
+
+        #message {
+            margin: 20px;
+            font-weight: bold;
+            color: #333;
+            min-height: 20px;
+        }
+
+        #tree {
+            margin-top: 30px;
+            overflow: auto;
+            padding: 30px;
+            min-height: 300px;
+        }
+
+        /*
+         * B-Tree node
+         */
+
+        .btree-node {
+            display: inline-flex;
+            background: #2563eb;
+            border: 3px solid #1e3a8a;
+            border-radius: 8px;
+            padding: 8px;
+            gap: 5px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .key {
+            background: white;
+            color: #1e3a8a;
+            padding: 10px 14px;
+            min-width: 45px;
+            border-radius: 5px;
+            font-size: 17px;
+        }
+
+        /*
+         * Children
+         */
+
+        .children {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 35px;
+        }
+
+        .child {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .level-title {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .empty {
+            color: #777;
+            font-size: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>B-Tree Visualizer</h1>
+
+    <p class="description">
+        B-Tree of minimum degree 2 (2-3-4 Tree)
+    </p>
+
+    <div class="controls">
+
+        <input
+            type="number"
+            id="value"
+            placeholder="Enter value"
+        >
+
+        <button onclick="insertValue()">
+            Insert
+        </button>
+
+        <button onclick="searchValue()">
+            Search
+        </button>
+
+        <button onclick="deleteValue()">
+            Delete
+        </button>
+
+        <button class="clear-btn" onclick="clearTree()">
+            Clear
+        </button>
+
+    </div>
+
+    <p id="message">
+        Enter a value to start.
+    </p>
+
+    <div id="tree"></div>
+
+
+    <script>
+
+        // ==========================================
+        // B-TREE NODE
+        // ==========================================
+
+        class BTreeNode {
+
+            constructor(leaf = false) {
+
+                this.keys = [];
+
+                this.children = [];
+
+                this.leaf = leaf;
+            }
+        }
+
+
+        // ==========================================
+        // B-TREE
+        // ==========================================
+
+        class BTree {
+
+            constructor(t = 2) {
+
+                // Minimum degree
+                this.t = t;
+
+                this.root = new BTreeNode(true);
+            }
+
+
+            // ======================================
+            // SEARCH
+            // ======================================
+
+            search(node, value) {
+
+                let i = 0;
+
+                while (
+                    i < node.keys.length &&
+                    value > node.keys[i]
+                ) {
+                    i++;
+                }
+
+                if (
+                    i < node.keys.length &&
+                    value === node.keys[i]
+                ) {
+                    return true;
+                }
+
+                if (node.leaf) {
+                    return false;
+                }
+
+                return this.search(
+                    node.children[i],
+                    value
+                );
+            }
+
+
+            // ======================================
+            // INSERT
+            // ======================================
+
+            insert(value) {
+
+                // Don't insert duplicate values
+                if (this.search(this.root, value)) {
+                    return false;
+                }
+
+                let root = this.root;
+
+                // If root is full
+                if (
+                    root.keys.length ===
+                    2 * this.t - 1
+                ) {
+
+                    let newRoot =
+                        new BTreeNode(false);
+
+                    newRoot.children.push(root);
+
+                    this.root = newRoot;
+
+                    this.splitChild(
+                        newRoot,
+                        0
+                    );
+
+                    this.insertNonFull(
+                        newRoot,
+                        value
+                    );
+
+                } else {
+
+                    this.insertNonFull(
+                        root,
+                        value
+                    );
+                }
+
+                return true;
+            }
+
+
+            // ======================================
+            // INSERT INTO NON-FULL NODE
+            // ======================================
+
+            insertNonFull(node, value) {
+
+                let i =
+                    node.keys.length - 1;
+
+
+                // Leaf node
+
+                if (node.leaf) {
+
+                    node.keys.push(0);
+
+                    while (
+                        i >= 0 &&
+                        value < node.keys[i]
+                    ) {
+
+                        node.keys[i + 1] =
+                            node.keys[i];
+
+                        i--;
+                    }
+
+                    node.keys[i + 1] =
+                        value;
+
+                }
+
+                // Internal node
+
+                else {
+
+                    while (
+                        i >= 0 &&
+                        value < node.keys[i]
+                    ) {
+                        i--;
+                    }
+
+                    i++;
+
+
+                    // Child is full
+
+                    if (
+                        node.children[i].keys.length ===
+                        2 * this.t - 1
+                    ) {
+
+                        this.splitChild(
+                            node,
+                            i
+                        );
+
+
+                        if (
+                            value >
+                            node.keys[i]
+                        ) {
+                            i++;
+                        }
+                    }
+
+                    this.insertNonFull(
+                        node.children[i],
+                        value
+                    );
+                }
+            }
+
+
+            // ======================================
+            // SPLIT CHILD
+            // ======================================
+
+            splitChild(parent, index) {
+
+                let t = this.t;
+
+                let fullChild =
+                    parent.children[index];
+
+                let newChild =
+                    new BTreeNode(
+                        fullChild.leaf
+                    );
+
+
+                // Middle key
+
+                let middleKey =
+                    fullChild.keys[t - 1];
+
+
+                // Move keys to new child
+
+                newChild.keys =
+                    fullChild.keys.splice(t);
+
+
+                // Remove middle key
+
+                fullChild.keys.splice(t - 1);
+
+
+                // Move children
+
+                if (!fullChild.leaf) {
+
+                    newChild.children =
+                        fullChild.children.splice(t);
+                }
+
+
+                // Add new child
+
+                parent.children.splice(
+                    index + 1,
+                    0,
+                    newChild
+                );
+
+
+                // Add middle key
+
+                parent.keys.splice(
+                    index,
+                    0,
+                    middleKey
+                );
+            }
+
+
+            // ======================================
+            // DELETE
+            // ======================================
+
+            delete(value) {
+
+                if (!this.search(this.root, value)) {
+                    return false;
+                }
+
+                this.deleteFromNode(
+                    this.root,
+                    value
+                );
+
+
+                // Root becomes empty
+
+                if (
+                    this.root.keys.length === 0 &&
+                    !this.root.leaf
+                ) {
+
+                    this.root =
+                        this.root.children[0];
+                }
+
+                return true;
+            }
+
+
+            // ======================================
+            // DELETE FROM NODE
+            // ======================================
+
+            deleteFromNode(node, value) {
+
+                let idx = 0;
+
+                while (
+                    idx < node.keys.length &&
+                    value > node.keys[idx]
+                ) {
+                    idx++;
+                }
+
+
+                // Key found
+
+                if (
+                    idx < node.keys.length &&
+                    node.keys[idx] === value
+                ) {
+
+                    // Case 1:
+                    // Leaf node
+
+                    if (node.leaf) {
+
+                        node.keys.splice(
+                            idx,
+                            1
+                        );
+
+                        return;
+                    }
+
+
+                    // Case 2:
+                    // Internal node
+
+                    // Left child has enough keys
+
+                    if (
+                        node.children[idx]
+                            .keys.length >= this.t
+                    ) {
+
+                        let predecessor =
+                            this.getPredecessor(
+                                node,
+                                idx
+                            );
+
+                        node.keys[idx] =
+                            predecessor;
+
+                        this.deleteFromNode(
+                            node.children[idx],
+                            predecessor
+                        );
+
+                    }
+
+                    // Right child has enough keys
+
+                    else if (
+                        node.children[idx + 1]
+                            .keys.length >= this.t
+                    ) {
+
+                        let successor =
+                            this.getSuccessor(
+                                node,
+                                idx
+                            );
+
+                        node.keys[idx] =
+                            successor;
+
+                        this.deleteFromNode(
+                            node.children[idx + 1],
+                            successor
+                        );
+
+                    }
+
+                    // Merge children
+
+                    else {
+
+                        this.merge(
+                            node,
+                            idx
+                        );
+
+                        this.deleteFromNode(
+                            node.children[idx],
+                            value
+                        );
+                    }
+
+                }
+
+                else {
+
+                    // Value not found in current node
+
+                    if (node.leaf) {
+                        return;
+                    }
+
+
+                    let child =
+                        node.children[idx];
+
+
+                    // Child has minimum keys
+
+                    if (
+                        child.keys.length ===
+                        this.t - 1
+                    ) {
+
+                        // Borrow from left
+
+                        if (
+                            idx > 0 &&
+                            node.children[idx - 1]
+                                .keys.length >= this.t
+                        ) {
+
+                            this.borrowFromPrevious(
+                                node,
+                                idx
+                            );
+                        }
+
+                        // Borrow from right
+
+                        else if (
+                            idx < node.children.length - 1 &&
+                            node.children[idx + 1]
+                                .keys.length >= this.t
+                        ) {
+
+                            this.borrowFromNext(
+                                node,
+                                idx
+                            );
+                        }
+
+                        // Merge
+
+                        else {
+
+                            if (
+                                idx <
+                                node.children.length - 1
+                            ) {
+
+                                this.merge(
+                                    node,
+                                    idx
+                                );
+
+                            } else {
+
+                                this.merge(
+                                    node,
+                                    idx - 1
+                                );
+
+                                idx--;
+                            }
+                        }
+                    }
+
+
+                    this.deleteFromNode(
+                        node.children[idx],
+                        value
+                    );
+                }
+            }
+
+
+            // ======================================
+            // PREDECESSOR
+            // ======================================
+
+            getPredecessor(node, index) {
+
+                let current =
+                    node.children[index];
+
+                while (!current.leaf) {
+
+                    current =
+                        current.children[
+                            current.children.length - 1
+                        ];
+                }
+
+                return current.keys[
+                    current.keys.length - 1
+                ];
+            }
+
+
+            // ======================================
+            // SUCCESSOR
+            // ======================================
+
+            getSuccessor(node, index) {
+
+                let current =
+                    node.children[index + 1];
+
+                while (!current.leaf) {
+
+                    current =
+                        current.children[0];
+                }
+
+                return current.keys[0];
+            }
+
+
+            // ======================================
+            // BORROW FROM PREVIOUS
+            // ======================================
+
+            borrowFromPrevious(node, index) {
+
+                let child =
+                    node.children[index];
+
+                let sibling =
+                    node.children[index - 1];
+
+
+                // Move parent key to child
+
+                child.keys.unshift(
+                    node.keys[index - 1]
+                );
+
+
+                // Move sibling child
+
+                if (!child.leaf) {
+
+                    child.children.unshift(
+                        sibling.children.pop()
+                    );
+                }
+
+
+                // Move sibling key to parent
+
+                node.keys[index - 1] =
+                    sibling.keys.pop();
+            }
+
+
+            // ======================================
+            // BORROW FROM NEXT
+            // ======================================
+
+            borrowFromNext(node, index) {
+
+                let child =
+                    node.children[index];
+
+                let sibling =
+                    node.children[index + 1];
+
+
+                // Parent key goes to child
+
+                child.keys.push(
+                    node.keys[index]
+                );
+
+
+                // Move sibling child
+
+                if (!child.leaf) {
+
+                    child.children.push(
+                        sibling.children.shift()
+                    );
+                }
+
+
+                // Sibling key goes to parent
+
+                node.keys[index] =
+                    sibling.keys.shift();
+            }
+
+
+            // ======================================
+            // MERGE
+            // ======================================
+
+            merge(node, index) {
+
+                let child =
+                    node.children[index];
+
+                let sibling =
+                    node.children[index + 1];
+
+
+                // Move parent key
+
+                child.keys.push(
+                    node.keys[index]
+                );
+
+
+                // Move sibling keys
+
+                child.keys =
+                    child.keys.concat(
+                        sibling.keys
+                    );
+
+
+                // Move children
+
+                if (!child.leaf) {
+
+                    child.children =
+                        child.children.concat(
+                            sibling.children
+                        );
+                }
+
+
+                // Remove parent key
+
+                node.keys.splice(
+                    index,
+                    1
+                );
+
+
+                // Remove sibling
+
+                node.children.splice(
+                    index + 1,
+                    1
+                );
+            }
+        }
+
+
+        // ==========================================
+        // CREATE B-TREE
+        // ==========================================
+
+        let btree = new BTree(2);
+
+
+        // ==========================================
+        // INSERT BUTTON
+        // ==========================================
+
+        function insertValue() {
+
+            let input =
+                document.getElementById("value");
+
+            let value =
+                Number(input.value);
+
+
+            if (input.value === "") {
+
+                showMessage(
+                    "Please enter a value."
+                );
+
+                return;
+            }
+
+
+            let inserted =
+                btree.insert(value);
+
+
+            if (inserted) {
+
+                showMessage(
+                    value + " inserted successfully."
+                );
+
+            } else {
+
+                showMessage(
+                    value + " already exists."
+                );
+            }
+
+
+            input.value = "";
+
+            displayTree();
+        }
+
+
+        // ==========================================
+        // SEARCH BUTTON
+        // ==========================================
+
+        function searchValue() {
+
+            let input =
+                document.getElementById("value");
+
+            let value =
+                Number(input.value);
+
+
+            if (input.value === "") {
+
+                showMessage(
+                    "Please enter a value."
+                );
+
+                return;
+            }
+
+
+            let found =
+                btree.search(
+                    btree.root,
+                    value
+                );
+
+
+            if (found) {
+
+                showMessage(
+                    value + " found in B-Tree."
+                );
+
+            } else {
+
+                showMessage(
+                    value + " not found."
+                );
+            }
+        }
+
+
+        // ==========================================
+        // DELETE BUTTON
+        // ==========================================
+
+        function deleteValue() {
+
+            let input =
+                document.getElementById("value");
+
+            let value =
+                Number(input.value);
+
+
+            if (input.value === "") {
+
+                showMessage(
+                    "Please enter a value."
+                );
+
+                return;
+            }
+
+
+            let deleted =
+                btree.delete(value);
+
+
+            if (deleted) {
+
+                showMessage(
+                    value + " deleted successfully."
+                );
+
+            } else {
+
+                showMessage(
+                    value + " not found."
+                );
+            }
+
+
+            input.value = "";
+
+            displayTree();
+        }
+
+
+        // ==========================================
+        // CLEAR TREE
+        // ==========================================
+
+        function clearTree() {
+
+            btree =
+                new BTree(2);
+
+            document.getElementById(
+                "tree"
+            ).innerHTML = "";
+
+            showMessage(
+                "B-Tree cleared."
+            );
+        }
+
+
+        // ==========================================
+        // MESSAGE
+        // ==========================================
+
+        function showMessage(message) {
+
+            document.getElementById(
+                "message"
+            ).textContent = message;
+        }
+
+
+        // ==========================================
+        // DISPLAY TREE
+        // ==========================================
+
+        function displayTree() {
+
+            let tree =
+                document.getElementById("tree");
+
+            tree.innerHTML = "";
+
+
+            if (
+                btree.root.keys.length === 0
+            ) {
+
+                tree.innerHTML =
+                    '<p class="empty">B-Tree is empty</p>';
+
+                return;
+            }
+
+
+            tree.appendChild(
+                createNodeElement(
+                    btree.root
+                )
+            );
+        }
+
+
+        // ==========================================
+        // CREATE NODE ELEMENT
+        // ==========================================
+
+        function createNodeElement(node) {
+
+            let container =
+                document.createElement("div");
+
+            container.className =
+                "child";
+
+
+            // B-Tree node
+
+            let nodeElement =
+                document.createElement("div");
+
+            nodeElement.className =
+                "btree-node";
+
+
+            // Add keys
+
+            node.keys.forEach(function(key) {
+
+                let keyElement =
+                    document.createElement("div");
+
+                keyElement.className =
+                    "key";
+
+                keyElement.textContent =
+                    key;
+
+                nodeElement.appendChild(
+                    keyElement
+                );
+            });
+
+
+            container.appendChild(
+                nodeElement
+            );
+
+
+            // Children
+
+            if (!node.leaf) {
+
+                let children =
+                    document.createElement("div");
+
+                children.className =
+                    "children";
+
+
+                node.children.forEach(
+                    function(child) {
+
+                        children.appendChild(
+                            createNodeElement(
+                                child
+                            )
+                        );
+                    }
+                );
+
+
+                container.appendChild(
+                    children
+                );
+            }
+
+
+            return container;
+        }
+
+    </script>
+
+</body>
+</html>
